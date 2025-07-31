@@ -1,0 +1,128 @@
+defaults:
+
+  logdir: null # 로그 저장 경로
+  traindir: null # 학습 데이터 저장 경로
+  evaldir: null # 평가 결과 저장 경로
+  offline_traindir: '' # 오프라인 학습 경로 (빈 문자열이면 무시됨)
+  offline_evaldir: '' # 오프라인 평가 경로 (빈 문자열이면 무시됨)
+  seed: 0 # 랜덤 시드
+  deterministic_run: False # 학습을 완전히 똑같이 재현할지 여부 (False면 GPU 연산 등에서 약간 차이 있을 수 있음)
+  steps: 1e6 # 총 학습 스텝 수
+  parallel: False # 병렬 환경에서 학습할지 여부 
+  eval_every: 1e4 # 평가 주기 (스텝 단위)
+  eval_episode_num: 10 # 평가 에피소드 수
+  log_every: 1e4 # 로그 기록 주기 (스텝 단위)
+  reset_every: 0 # 환경 리셋 주기 (0이면 매 스텝마다 리셋)
+  device: 'cuda:0' # 사용할 디바이스 (GPU 또는 CPU)
+  compile: True # PyTorch 2의 torch.compile()을 사용해서 실행 속도를 최적화 여부
+  precision: 32 # 32비트 부동소수점 연산 사용
+  debug: False # 디버깅 모드  (True로 하면 로그 더 자주 출력, 학습 짧게 실행 등 개발자용 설정)
+  video_pred_log: False # 모델이 상상(imagined)한 이미지 시퀀스를 비디오로 저장 여부 (시각화용)
+
+  # Model
+  dyn_rec_depth: 1 # RSSM의 recurrent network가 몇 층인지 (여기서는 1층)
+  dyn_hidden: 512 # RSSM 내부에서 사용되는 hidden layer의 dim (여기서는 hidden layer가 1층임)
+  dyn_deter: 512 # RSSM의 sequence model이 만드는 h의 dim
+  dyn_stoch: 32 # RSSM의 dynamics predictor이 만드는 z의 dim
+  dyn_discrete: 32 # discrete일 시에...RSSM의 dynamics predictor이 만드는 discrete z의 dim
+  dyn_mean_act: 'none' # z의 평균을 어떻게 계산 할 때 사용하는 활성화 함수 (여기서는 사용 안함)
+  dyn_std_act: 'sigmoid2' # z의 표준편차를 어떻게 계산 할 때 사용하는 활성화 함수 (sigmoid2는 기존의 sigmoid에 2를 곱한 것)
+  dyn_min_std: 0.1 # z의 표준편차의 최소값 (0.1) -> sigmoid2의 출력값이 0.1보다 작아지지 않도록 함
+  grad_heads: ['decoder', 'reward', 'cont'] # 어떤 head들이 gradient를 계산할지 지정 (여기서는 decoder, reward, cont head만 사용)
+  units: 512
+  act: 'SiLU'
+  norm: True
+  encoder:
+    {mlp_keys: '$^', cnn_keys: 'image', act: 'SiLU', norm: True, cnn_depth: 32, kernel_size: 4, minres: 4, mlp_layers: 5, mlp_units: 1024, symlog_inputs: True}
+  decoder:
+    {mlp_keys: '$^', cnn_keys: 'image', act: 'SiLU', norm: True, cnn_depth: 32, kernel_size: 4, minres: 4, mlp_layers: 5, mlp_units: 1024, cnn_sigmoid: False, image_dist: mse, vector_dist: symlog_mse, outscale: 1.0}
+  actor:
+    {layers: 2, dist: 'normal', entropy: 3e-4, unimix_ratio: 0.01, std: 'learned', min_std: 0.1, max_std: 1.0, temp: 0.1, lr: 3e-5, eps: 1e-5, grad_clip: 100.0, outscale: 1.0}
+  critic:
+    {layers: 2, dist: 'symlog_disc', slow_target: True, slow_target_update: 1, slow_target_fraction: 0.02, lr: 3e-5, eps: 1e-5, grad_clip: 100.0, outscale: 0.0}
+  reward_head:
+    {layers: 2, dist: 'symlog_disc', loss_scale: 1.0, outscale: 0.0}
+  cont_head:
+    {layers: 2, loss_scale: 1.0, outscale: 1.0}
+  dyn_scale: 0.5
+  rep_scale: 0.1
+  kl_free: 1.0
+  weight_decay: 0.0
+  unimix_ratio: 0.01
+  initial: 'learned'
+
+  # Training
+  batch_size: 16
+  batch_length: 64
+  train_ratio: 512
+  pretrain: 100
+  model_lr: 1e-4
+  opt_eps: 1e-8
+  grad_clip: 1000
+  dataset_size: 1000000
+  opt: 'adam'
+
+  # Behavior.
+  discount: 0.997
+  discount_lambda: 0.95
+  imag_horizon: 15
+  imag_gradient: 'dynamics'
+  imag_gradient_mix: 0.0
+  eval_state_mean: False
+
+  # Exploration
+  expl_behavior: 'greedy'
+  expl_until: 0
+  expl_extr_scale: 0.0
+  expl_intr_scale: 1.0
+  disag_target: 'stoch'
+  disag_log: True
+  disag_models: 10
+  disag_offset: 1
+  disag_layers: 4
+  disag_units: 400
+  disag_action_cond: False
+
+  # Environment
+  task: 'dmc_walker_walk' # 걷는 2족 로봇을 학습하는 DMC 환경
+  size: [64, 64] # 입력 이미지 해상도 (64×64)
+  envs: 1 # 병렬 환경 수 (1개 환경만 사용)
+  action_repeat: 2 # 같은 행동을 2 프레임 동안 유지 (프레임 스킵)
+  time_limit: 1000 # 에피소드 최대 스텝 수 (1000스텝 지나면 종료)
+  grayscale: False # 입력 이미지를 흑백으로 변환하지 않음 
+  prefill: 2500 # 학습 시작 전 에이전트가 random 2500step의 random 행동을 하여 replay buffer를 채움
+  reward_EMA: True # 보상 로그를 EMA로 부드럽게 표시
+
+dmc_proprio:
+  steps: 5e5
+  action_repeat: 2
+  envs: 4
+  train_ratio: 512
+  video_pred_log: false
+  encoder: {mlp_keys: '.*', cnn_keys: '$^'}
+  decoder: {mlp_keys: '.*', cnn_keys: '$^'}
+
+dmc_vision:
+  steps: 1e6
+  action_repeat: 2
+  envs: 4
+  train_ratio: 512
+  video_pred_log: true
+  encoder: {mlp_keys: '$^', cnn_keys: 'image'}
+  decoder: {mlp_keys: '$^', cnn_keys: 'image'}
+
+minigrid:
+  task: MiniGrid-DoorKey-8x8
+  run:
+    steps: 1e6
+    train_ratio: 64
+    envs: 4
+  batch_size: 16
+  batch_length: 64
+
+debug:
+  debug: True
+  pretrain: 1
+  prefill: 1
+  batch_size: 10
+  batch_length: 20
